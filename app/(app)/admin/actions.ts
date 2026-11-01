@@ -2,10 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
-import { can, type Action } from "@/lib/roles.ts";
-import { getCurrentUser } from "@/lib/session";
+import { authorizeAction } from "@/lib/action-auth";
 import { parseCohort } from "@/lib/planner/schema.ts";
-import { createCohort, deleteCohort, replaceCohort } from "@/lib/planner/store";
+import { createCohort, deleteCohort, replaceCohort, saveHolidays } from "@/lib/planner/store";
+import { parseHolidays, type HolidayLineError } from "@/lib/planner/holidays.ts";
 import { changeUserRole } from "@/lib/users";
 import type { CohortErrors } from "@/lib/planner/types.ts";
 
@@ -14,15 +14,6 @@ export type FormState = {
   values?: Record<string, string>;
   message?: string;
 };
-
-/** Server actions can be called directly, so each one checks the user itself. */
-async function authorizeAction(action: Action) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/signin");
-  const actor = { kind: "user", role: user.role } as const;
-  if (!can(actor, action)) redirect("/");
-  return { user, actor };
-}
 
 function formValues(formData: FormData): Record<string, string> {
   const out: Record<string, string> = {};
@@ -77,4 +68,21 @@ export async function changeRoleAction(email: string, role: string): Promise<{ e
   // authorizeAction already checked this, so it only guards against the two drifting apart.
   if (outcome === "forbidden") redirect("/");
   return { error: ROLE_MESSAGES[outcome] };
+}
+
+export type HolidayState = { text?: string; errors?: HolidayLineError[]; saved?: boolean; message?: string; loadedAt?: string };
+
+export async function saveHolidaysAction(_prev: HolidayState, formData: FormData): Promise<HolidayState> {
+  const { user } = await authorizeAction("write-holidays");
+  const raw = formData.get("holidays");
+  const text = typeof raw === "string" ? raw : "";
+  const parsed = parseHolidays(text);
+  if (!parsed.ok) return { text, errors: parsed.errors };
+  const loadedAt = formData.get("loadedAt");
+  const savedAt = await saveHolidays(parsed.holidays, user.email, typeof loadedAt === "string" ? loadedAt : "");
+  if (!savedAt) {
+    return { text, message: "Someone else saved the holidays after you opened this page. Reload to see their changes, then edit again." };
+  }
+  refresh();
+  return { text, saved: true, loadedAt: savedAt };
 }

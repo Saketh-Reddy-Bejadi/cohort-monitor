@@ -60,3 +60,9 @@ export function addWorkdays(iso: string, n: number, holidays: ReadonlySet<string
   }
   return d;
 }
+
+/** The Monday of the week that contains `iso`. Weeks run Monday to Sunday. */
+export function weekStart(iso: string): string {
+  const d = new Date(toMs(iso)).getUTCDay(); // 0 is Sunday
+  return addDays(iso, -((d + 6) % 7));
+}

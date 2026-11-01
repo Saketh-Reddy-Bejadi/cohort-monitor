@@ -266,3 +266,8 @@ export function buildTasks(input: {
   });
   return out.map((e) => e.task);
 }
+
+/** Matches the keys of every task of one cohort (`<cohort id>:...`), whatever characters the id has. */
+export function doneKeyPattern(cohortId: string): string {
+  return `^${cohortId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:`;
+}

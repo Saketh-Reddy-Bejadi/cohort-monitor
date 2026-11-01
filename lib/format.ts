@@ -19,3 +19,13 @@ export function fmtMoment(d: Date | undefined): string {
     hour: "numeric", minute: "2-digit", hour12: true,
   });
 }
+
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** "2026-11-06" to "Fri 6 Nov". Short, for lists where the year is clear. */
+export function fmtDay(iso: string | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? "");
+  if (!m) return "Not set";
+  const dow = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).getUTCDay();
+  return `${DAYS[dow]} ${Number(m[3])} ${MONTHS[Number(m[2]) - 1]}`;
+}
