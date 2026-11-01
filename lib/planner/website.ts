@@ -24,6 +24,8 @@ export type Change = {
   date: string;
   /** The day the work for this change starts: the earliest task date. */
   prepStart: string;
+  /** The task pages whose work leads up to this change. */
+  pages: string[];
   checklist: string[];
 };
 
@@ -159,6 +161,7 @@ export function websiteStatus(input: {
       label: d.label,
       date: at,
       prepStart: dates.length > 0 ? dates.reduce((a, b) => (a < b ? a : b)) : at,
+      pages: d.pages,
       checklist: d.checklist.map((line) => fillText(line, cohort)),
     });
   }
@@ -172,4 +175,12 @@ export function websiteStatus(input: {
     prepStarted: upcoming.prepStart <= today,
   };
   return { view, changes, next };
+}
+
+/**
+ * The key a checklist tick is saved under. It starts with the cohort id, so it is cleared
+ * with the cohort, and it begins "check-", which no task step id does, so it never clashes.
+ */
+export function checkKey(cohortId: string, changeId: ChangeId, index: number): string {
+  return `${cohortId}:check-${changeId}-${index}`;
 }

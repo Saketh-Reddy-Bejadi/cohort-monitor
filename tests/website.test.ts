@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { siteView, websiteStatus } from "../lib/planner/website.ts";
+import { checkKey, siteView, websiteStatus } from "../lib/planner/website.ts";
 import { waitlistDate } from "../lib/planner/anchors.ts";
 import type { Cohort } from "../lib/planner/types.ts";
 
@@ -148,4 +148,32 @@ test("a cohort with no dates has no changes and no next", () => {
   assert.deepEqual(r.changes, []);
   assert.equal(r.next, undefined);
   assert.equal(r.view.state, "no-dates");
+});
+
+test("each change says which task pages lead up to it", () => {
+  const { changes } = websiteStatus({ cohort: full(), today: "2026-11-01" });
+  const pages = (id: string) => changes.find((c) => c.id === id)!.pages;
+  assert.deepEqual(pages("waitlist"), ["Waitlist LP"]);
+  assert.ok(pages("open").includes("Dark LP") && pages("open").includes("Onboarding"));
+  assert.deepEqual(pages("started"), ["Classes start"]);
+  assert.deepEqual(pages("standard"), ["Standard pricing"]);
+  assert.deepEqual(pages("close"), ["Enrolment close"]);
+});
+
+test("a moved task changes the prep start", () => {
+  const moved = websiteStatus({
+    cohort: full(), today: "2026-11-01",
+    overrides: { "c1:waitlist-request": { date: "2026-11-02", reason: "Waiting for copy" } },
+  });
+  assert.equal(moved.changes.find((c) => c.id === "waitlist")!.prepStart, "2026-11-02");
+  const plain = websiteStatus({ cohort: full(), today: "2026-11-01" });
+  assert.equal(plain.changes.find((c) => c.id === "waitlist")!.prepStart, "2026-10-30");
+});
+
+test("checklist tick keys are stable and cannot clash with task keys", () => {
+  assert.equal(checkKey("aise-c4", "open", 2), "aise-c4:check-open-2");
+  assert.notEqual(checkKey("c1", "open", 0), checkKey("c1", "open", 1));
+  assert.notEqual(checkKey("c1", "open", 0), checkKey("c1", "close", 0));
+  // Task keys are "<cohort>:<step id>", and no step id starts with "check-".
+  assert.ok(checkKey("c1", "open", 0).startsWith("c1:check-"));
 });
