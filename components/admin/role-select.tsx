@@ -13,10 +13,15 @@ export function RoleSelect({ email, role }: { email: string; role: "admin" | "us
     setValue(next); // respond at once
     setError(undefined);
     startTransition(async () => {
-      const res = await changeRoleAction(email, next);
-      if (res.error) {
+      try {
+        const res = await changeRoleAction(email, next);
+        if (res.error) {
+          setValue(previous);
+          setError(res.error);
+        }
+      } catch {
         setValue(previous);
-        setError(res.error);
+        setError("Could not change the role. Try again.");
       }
     });
   }
