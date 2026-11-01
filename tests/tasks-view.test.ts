@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  filterTasks, groupTasks, ownersOf, parseFilters, summarize,
+  dueMatches, filterTasks, groupTasks, ownerNames, ownersOf, parseFilters, summarize,
 } from "../lib/planner/tasks-view.ts";
 import type { Task } from "../lib/planner/engine.ts";
 
@@ -51,20 +51,20 @@ const set = () => [
 const texts = (xs: Task[]) => xs.map((x) => x.text);
 
 test("status filter: open, overdue, done, all", () => {
-  assert.deepEqual(texts(filterTasks(set(), { status: "open" })), ["Publish waitlist", "Review beta", "Send tools"]);
-  assert.deepEqual(texts(filterTasks(set(), { status: "overdue" })), ["Publish waitlist"]);
-  assert.deepEqual(texts(filterTasks(set(), { status: "done" })), ["Request page"]);
-  assert.equal(filterTasks(set(), { status: "all" }).length, 5);
-  assert.equal(filterTasks(set(), {}).length, 3); // open by default
+  assert.deepEqual(texts(filterTasks(set(), { status: "open" }, TODAY)), ["Publish waitlist", "Review beta", "Send tools"]);
+  assert.deepEqual(texts(filterTasks(set(), { status: "overdue" }, TODAY)), ["Publish waitlist"]);
+  assert.deepEqual(texts(filterTasks(set(), { status: "done" }, TODAY)), ["Request page"]);
+  assert.equal(filterTasks(set(), { status: "all" }, TODAY).length, 5);
+  assert.equal(filterTasks(set(), {}, TODAY).length, 3); // open by default
 });
 
 test("cohort, owner and search filters combine", () => {
-  assert.deepEqual(texts(filterTasks(set(), { status: "all", cohort: "a" })), ["Publish waitlist", "Send tools", "Request page"]);
-  assert.deepEqual(texts(filterTasks(set(), { status: "all", owner: "ASHA" })), ["Publish waitlist", "Send tools", "Request page"]);
-  assert.deepEqual(texts(filterTasks(set(), { status: "all", q: "BETA" })), ["Review beta"]);
-  assert.deepEqual(texts(filterTasks(set(), { status: "all", q: "dark lp", cohort: "b" })), ["Review beta", "Old thing"]);
-  assert.deepEqual(texts(filterTasks(set(), { status: "open", cohort: "a", owner: "asha", q: "tools" })), ["Send tools"]);
-  assert.equal(filterTasks(set(), { status: "all", q: "nothing matches" }).length, 0);
+  assert.deepEqual(texts(filterTasks(set(), { status: "all", cohort: "a" }, TODAY)), ["Publish waitlist", "Send tools", "Request page"]);
+  assert.deepEqual(texts(filterTasks(set(), { status: "all", owner: "ASHA" }, TODAY)), ["Publish waitlist", "Send tools", "Request page"]);
+  assert.deepEqual(texts(filterTasks(set(), { status: "all", q: "BETA" }, TODAY)), ["Review beta"]);
+  assert.deepEqual(texts(filterTasks(set(), { status: "all", q: "dark lp", cohort: "b" }, TODAY)), ["Review beta", "Old thing"]);
+  assert.deepEqual(texts(filterTasks(set(), { status: "open", cohort: "a", owner: "asha", q: "tools" }, TODAY)), ["Send tools"]);
+  assert.equal(filterTasks(set(), { status: "all", q: "nothing matches" }, TODAY).length, 0);
 });
 
 test("owners list: unique ignoring case, sorted, no empties", () => {
@@ -72,16 +72,16 @@ test("owners list: unique ignoring case, sorted, no empties", () => {
 });
 
 test("counts ignore the status filter but respect the others", () => {
-  const all = summarize(set(), {});
+  const all = summarize(set(), {}, TODAY);
   assert.deepEqual(all.counts, { open: 3, overdue: 1, done: 1, all: 5 });
   assert.equal(all.visible.length, 3);
-  const a = summarize(set(), { cohort: "a", status: "done" });
+  const a = summarize(set(), { cohort: "a", status: "done" }, TODAY);
   assert.deepEqual(a.counts, { open: 2, overdue: 1, done: 1, all: 3 });
   assert.deepEqual(texts(a.visible), ["Request page"]);
 });
 
 test("parseFilters cleans address bar values", () => {
-  assert.deepEqual(parseFilters({}), { status: "open", cohort: undefined, owner: undefined, q: undefined });
+  assert.deepEqual(parseFilters({}), { status: "open", cohort: undefined, owner: undefined, q: undefined, due: undefined });
   assert.equal(parseFilters({ status: "hacked" }).status, "open");
   assert.equal(parseFilters({ status: "overdue" }).status, "overdue");
   assert.equal(parseFilters({ status: ["done", "all"] }).status, "done");
@@ -89,4 +89,63 @@ test("parseFilters cleans address bar values", () => {
   assert.equal(parseFilters({ q: "   " }).q, undefined);
   assert.equal(parseFilters({ q: "x".repeat(300) }).q?.length, 100);
   assert.equal(parseFilters({ cohort: "a", owner: "Asha" }).owner, "Asha");
+});
+
+// Wednesday 4 Nov 2026. The week runs Mon 2 Nov to Sun 8 Nov.
+const TODAY = "2026-11-04";
+
+test("due filter: today, this week (today to Sunday), go-lives in the next 14 days", () => {
+  const at = (date: string, over: Partial<Task> = {}) => t({ date, status: "upcoming", ...over });
+  assert.equal(dueMatches(at("2026-11-04"), "today", TODAY), true);
+  assert.equal(dueMatches(at("2026-11-05"), "today", TODAY), false);
+  assert.equal(dueMatches(at("2026-11-03"), "week", TODAY), false); // earlier this week is not "due"
+  assert.equal(dueMatches(at("2026-11-04"), "week", TODAY), true);
+  assert.equal(dueMatches(at("2026-11-08"), "week", TODAY), true); // Sunday counts
+  assert.equal(dueMatches(at("2026-11-09"), "week", TODAY), false);
+  assert.equal(dueMatches(at("2026-11-18", { goLive: true }), "golive", TODAY), true); // day 14
+  assert.equal(dueMatches(at("2026-11-19", { goLive: true }), "golive", TODAY), false); // day 15
+  assert.equal(dueMatches(at("2026-11-04", { goLive: true }), "golive", TODAY), true);
+  assert.equal(dueMatches(at("2026-11-03", { goLive: true }), "golive", TODAY), false);
+  assert.equal(dueMatches(at("2026-11-10"), "golive", TODAY), false); // not a go-live
+});
+
+test("due filter works with the others, and needs today", () => {
+  const tasks = [
+    t({ date: "2026-11-04", status: "today", text: "a" }),
+    t({ date: "2026-11-06", status: "upcoming", text: "b" }),
+    t({ date: "2026-11-02", status: "overdue", text: "c" }),
+  ];
+  assert.deepEqual(texts(filterTasks(tasks, { due: "today" }, TODAY)), ["a"]);
+  assert.deepEqual(texts(filterTasks(tasks, { due: "week" }, TODAY)), ["a", "b"]);
+  assert.deepEqual(texts(filterTasks(tasks, { due: "week", q: "b" }, TODAY)), ["b"]);
+  assert.equal(filterTasks(tasks, {}, TODAY).length, 3); // no due filter
+});
+
+test("counts respect the due filter", () => {
+  const tasks = [
+    t({ date: "2026-11-04", status: "today" }),
+    t({ date: "2026-11-02", status: "overdue" }),
+    t({ date: "2026-11-04", status: "done" }),
+  ];
+  const s = summarize(tasks, { due: "today" }, TODAY);
+  assert.deepEqual(s.counts, { open: 1, overdue: 0, done: 1, all: 2 });
+  assert.equal(s.visible.length, 1);
+});
+
+test("parseFilters reads the due filter and ignores unknown values", () => {
+  assert.equal(parseFilters({ due: "today" }).due, "today");
+  assert.equal(parseFilters({ due: "golive" }).due, "golive");
+  assert.equal(parseFilters({ due: "week" }).due, "week");
+  assert.equal(parseFilters({ due: "tomorrow" }).due, undefined);
+  assert.equal(parseFilters({ due: ["week", "today"] }).due, "week");
+});
+
+test("owner names for suggestions: task owners and cohort people, unique, sorted, no empties", () => {
+  const tasks = [t({ owner: "Priya" }), t({ owner: "Asha Menon" }), t({ owner: undefined })];
+  const cohorts = [
+    { poc: "Asha Menon", pm: "Ravi Kumar" },
+    { poc: undefined, pm: "  " },
+  ];
+  assert.deepEqual(ownerNames(tasks, cohorts), ["Asha Menon", "Priya", "Ravi Kumar"]);
+  assert.deepEqual(ownerNames([], []), []);
 });

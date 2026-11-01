@@ -5,7 +5,7 @@ import { TaskFilters } from "@/components/tasks/task-filters";
 import { TaskRow } from "@/components/tasks/task-row";
 import { fmtDay } from "@/lib/format";
 import { loadTasks } from "@/lib/planner/state";
-import { groupTasks, ownersOf, parseFilters, summarize } from "@/lib/planner/tasks-view.ts";
+import { groupTasks, ownerNames, ownersOf, parseFilters, summarize } from "@/lib/planner/tasks-view.ts";
 import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Tasks" };
@@ -14,9 +14,9 @@ async function TasksContent({ searchParams }: { searchParams: PageProps<"/tasks"
   await requireUser(); // first: this is what makes the page dynamic, so the clock below is allowed
   const filters = parseFilters(await searchParams);
   const { tasks, cohorts, today } = await loadTasks();
-  const { visible, counts } = summarize(tasks, filters);
+  const { visible, counts } = summarize(tasks, filters, today);
   const groups = groupTasks(visible, today);
-  const narrowed = filters.cohort || filters.owner || filters.q;
+  const narrowed = filters.cohort || filters.owner || filters.q || filters.due;
 
   return (
     <>
@@ -24,7 +24,7 @@ async function TasksContent({ searchParams }: { searchParams: PageProps<"/tasks"
         <p className="text-sm text-slate-600">Today is {fmtDay(today)}. Dates are India dates.</p>
         <AddTaskPanel
           cohorts={cohorts.filter((c) => c.status === "active").map((c) => ({ id: c.id, name: c.name }))}
-          owners={[...new Set([...ownersOf(tasks), ...cohorts.flatMap((c) => [c.poc, c.pm])].filter((x): x is string => !!x))].sort()}
+          owners={ownerNames(tasks, cohorts)}
           today={today}
         />
       </div>
