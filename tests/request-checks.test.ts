@@ -2,15 +2,18 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { sameOrigin, tokenMatches } from "../lib/request-checks.ts";
 
+const T = "secret-token-secret-token-secret-token";
+
 test("bearer token", () => {
-  assert.equal(tokenMatches("Bearer secret-token", "secret-token"), true);
-  assert.equal(tokenMatches("Bearer wrong-token!", "secret-token"), false);
-  assert.equal(tokenMatches("Bearer short", "secret-token"), false);
-  assert.equal(tokenMatches("bearer secret-token", "secret-token"), true);
-  assert.equal(tokenMatches("secret-token", "secret-token"), false);
-  assert.equal(tokenMatches(null, "secret-token"), false);
+  assert.equal(tokenMatches(`Bearer ${T}`, T), true);
+  assert.equal(tokenMatches(`Bearer ${T.slice(0, -1)}!`, T), false);
+  assert.equal(tokenMatches("Bearer short", T), false);
+  assert.equal(tokenMatches(`bearer ${T}`, T), true);
+  assert.equal(tokenMatches(T, T), false);
+  assert.equal(tokenMatches(null, T), false);
   assert.equal(tokenMatches("Bearer ", ""), false);
   assert.equal(tokenMatches("Bearer x", undefined), false);
+  assert.equal(tokenMatches("Bearer change-me-long-random-string", "change-me-long-random-string"), false);
 });
 
 test("origin check", () => {

@@ -26,7 +26,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
         if (!isAllowedEmail(email, process.env.ALLOWED_EMAIL_DOMAIN ?? "")) {
           return "/signin?error=domain";
         }
-        await recordLogin(email, user.name ?? email);
+        // The oid does not change when an email is renamed or reused.
+        const oid = profile?.oid;
+        if (typeof oid !== "string" || !oid) return "/signin?error=identity";
+        if (!(await recordLogin(email, user.name ?? email, oid))) return "/signin?error=identity";
         return true;
       },
       jwt({ token, profile, user }) {

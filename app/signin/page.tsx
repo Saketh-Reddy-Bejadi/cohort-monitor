@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/session";
 
 const messages: Record<string, string> = {
   domain: "That account is not allowed. Use your @codebasics.io email.",
+  identity: "This email is linked to a different Microsoft account. Ask an admin for help.",
   AccessDenied: "That account is not allowed. Use your @codebasics.io email.",
 };
 
