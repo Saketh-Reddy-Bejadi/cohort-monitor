@@ -46,6 +46,21 @@ export function can(actor: Actor, action: Action): boolean {
   return actor.role === "admin" || actor.role === "owner";
 }
 
+/**
+ * The account a role change aims at. The owner may not have signed in yet, so
+ * no document exists; they still count as the owner, or the owner could be told
+ * apart from a missing account.
+ */
+export function resolveTarget<T extends { role: Role }>(
+  found: T | null,
+  email: string,
+  ownerEmail: string,
+): T | { role: "owner" } | null {
+  const owner = normalizeEmail(ownerEmail);
+  if (found) return found;
+  return owner && normalizeEmail(email) === owner ? { role: "owner" } : null;
+}
+
 export type RoleChange = "bad-role" | "not-found" | "forbidden" | "noop" | "apply";
 
 /**

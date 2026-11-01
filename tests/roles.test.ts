@@ -6,6 +6,7 @@ import {
   isAllowedEmail,
   publicRole,
   resolveRole,
+  resolveTarget,
   type Actor,
 } from "../lib/roles.ts";
 
@@ -73,4 +74,15 @@ test("owner cannot be picked out", () => {
   assert.equal(roleChangeOutcome(admin, { role: "admin" }, "root"), "bad-role");
   // A valid change on the owner changes nothing and is not an error.
   assert.equal(roleChangeOutcome(admin, { role: "owner" }, "user"), "noop");
+});
+
+test("owner who never signed in looks the same as a signed-in owner", () => {
+  const admin: Actor = { kind: "user", role: "admin" };
+  const owner = "Me@codebasics.io";
+  const target = resolveTarget(null, "me@codebasics.io", owner);
+  assert.equal(roleChangeOutcome(admin, target, "user"), "noop");
+  assert.equal(resolveTarget(null, "x@codebasics.io", owner), null);
+  assert.equal(resolveTarget(null, "me@codebasics.io", ""), null);
+  const found = { role: "user" as const };
+  assert.equal(resolveTarget(found, "x@codebasics.io", owner), found);
 });

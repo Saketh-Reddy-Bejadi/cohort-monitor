@@ -8,7 +8,7 @@ const base: RequestFacts = {
   authorization: null,
   origin: null,
   host: "app.test",
-  apiToken: "secret-token",
+  apiToken: "secret-token-secret-token-secret-token",
 };
 const as = (role: Role | null) => async () =>
   role ? { email: "x@codebasics.io", role } : null;
@@ -20,7 +20,7 @@ test("no session and no token is 401", async () => {
 });
 
 test("token: valid reads and writes cohorts, cannot manage users or tick", async () => {
-  const req = { ...base, authorization: "Bearer secret-token" };
+  const req = { ...base, authorization: "Bearer secret-token-secret-token-secret-token" };
   assert.equal((await decide(req, "read", as(null))).ok, true);
   assert.equal((await decide(req, "write-cohort", as(null))).ok, true);
   for (const a of ["manage-users", "tick-task"] as const) {
@@ -55,7 +55,7 @@ test("cookie: role matrix", async () => {
 
 test("session is not looked up when a token header is present", async () => {
   let called = false;
-  await decide({ ...base, authorization: "Bearer secret-token" }, "read", async () => {
+  await decide({ ...base, authorization: "Bearer secret-token-secret-token-secret-token" }, "read", async () => {
     called = true;
     return null;
   });

@@ -4,6 +4,7 @@ import {
   normalizeEmail,
   publicRole,
   resolveRole,
+  resolveTarget,
   roleChangeOutcome,
   type Actor,
   type Role,
@@ -13,6 +14,9 @@ import {
 export type UserDoc = {
   email: string;
   name: string;
+  // Entra object id, saved at first login. The email can be renamed or reused;
+  // the oid cannot, so a different oid on the same email is refused.
+  oid?: string;
   // "owner" | "admin" | "user". Saved so the database shows the real role, but
   // OWNER_EMAIL decides who is owner: a stored "owner" on any other account counts as user.
   role: string;
@@ -39,25 +43,36 @@ async function users() {
 /**
  * Called on every sign-in. Creates the account as `user` on first login, then
  * saves the real role in the database: the owner is stored as "owner", and
- * anyone left over as "owner" after OWNER_EMAIL changed goes back to "user".
+ * when the owner signs in, anyone left over as "owner" after OWNER_EMAIL changed
+ * goes back to "user".
  */
-export async function recordLogin(email: string, name: string): Promise<AppUser> {
+export async function recordLogin(email: string, name: string, oid: string): Promise<AppUser | null> {
   const e = normalizeEmail(email);
   const col = await users();
-  const doc = await col.findOneAndUpdate(
-    { email: e },
-    {
-      $set: { name, lastLoginAt: new Date() },
-      $setOnInsert: { email: e, role: "user" },
-    },
-    { upsert: true, returnDocument: "after" },
-  );
+  let doc;
+  try {
+    // Matches a new account, an older account with no oid yet, or the same oid.
+    // An account tied to a different oid misses the filter, the upsert then hits
+    // the unique email index, and the sign-in is refused.
+    doc = await col.findOneAndUpdate(
+      { email: e, $or: [{ oid }, { oid: { $exists: false } }] },
+      {
+        $set: { name, oid, lastLoginAt: new Date() },
+        $setOnInsert: { email: e, role: "user" },
+      },
+      { upsert: true, returnDocument: "after" },
+    );
+  } catch (err) {
+    if ((err as { code?: number }).code === 11000) return null;
+    throw err;
+  }
   const role = resolveRole(e, doc?.role, ownerEmail());
   if (doc?.role !== role) await col.updateOne({ email: e }, { $set: { role } });
-  await col.updateMany(
-    { role: "owner", email: { $ne: normalizeEmail(ownerEmail()) } },
-    { $set: { role: "user" } },
-  );
+  // Only the owner's login can follow an OWNER_EMAIL change, so only then sweep
+  // the old owner. Until then resolveRole already treats a stale "owner" as user.
+  if (role === "owner") {
+    await col.updateMany({ role: "owner", email: { $ne: e } }, { $set: { role: "user" } });
+  }
   return { email: e, name, role };
 }
 
@@ -99,9 +114,9 @@ export async function changeUserRole(
   role: string,
 ): Promise<ChangeResult> {
   if (actorEmail && normalizeEmail(email) === normalizeEmail(actorEmail)) return "self";
-  const target = await findUser(email);
+  const target = resolveTarget(await findUser(email), email, ownerEmail());
   const outcome = roleChangeOutcome(actor, target, role);
-  if (outcome === "apply") await setUserRole(target!.email, role as "admin" | "user");
+  if (outcome === "apply") await setUserRole(email, role as "admin" | "user");
   return outcome;
 }
 
