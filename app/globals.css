@@ -28,6 +28,45 @@ body {
   color: #0f172a;
 }
 
+/* Slim scrollbars in the brand tint, on the page and inside tables. */
+html { scrollbar-gutter: stable; }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #b7c9e2 transparent;
+}
+/* Older Safari does not know the standard properties. */
+@supports not (scrollbar-color: auto) {
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: #b7c9e2;
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover { background: var(--color-brand-600); background-clip: content-box; }
+}
+
+/* Tailwind v4 resets buttons to the arrow cursor. Anything clickable gets the pointer. */
+@layer base {
+  a[href],
+  button:not(:disabled),
+  summary,
+  select:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  input:is([type="checkbox"], [type="radio"], [type="submit"], [type="button"]):not(:disabled),
+  label:has(input:is([type="checkbox"], [type="radio"]):not(:disabled)),
+  label[for]:has(+ select:not(:disabled)) {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+}
+
 /* Tight tracking on large text, comfortable leading on body. */
 h1, h2 { letter-spacing: -0.02em; line-height: 1.15; }
 
@@ -42,6 +81,7 @@ h1, h2 { letter-spacing: -0.02em; line-height: 1.15; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  aside, aside * { transition-duration: 0.01ms !important; }
   /* Gentler equivalent: cross-fade only, no movement or blur. */
   @keyframes materialize { from { opacity: 0; } to { opacity: 1; } }
   @keyframes rise { from { opacity: 0; } to { opacity: 1; } }
@@ -51,5 +91,6 @@ h1, h2 { letter-spacing: -0.02em; line-height: 1.15; }
   .material { background: #fff; backdrop-filter: none; }
 }
 @media (prefers-contrast: more) {
+  * { scrollbar-color: #475569 transparent; }
   .material { background: #fff; backdrop-filter: none; border-color: #0f172a; }
 }
