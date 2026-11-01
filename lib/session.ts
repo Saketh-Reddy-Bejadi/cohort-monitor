@@ -3,7 +3,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "./auth";
 import { findUser, type AppUser } from "./users";
-import { isAllowedEmail } from "./roles.ts";
+import { can, isAllowedEmail } from "./roles.ts";
 
 /** The signed-in user, or null. Call inside <Suspense>: it reads cookies. */
 export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
@@ -18,5 +18,12 @@ export const getCurrentUser = cache(async (): Promise<AppUser | null> => {
 export async function requireUser(): Promise<AppUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/signin");
+  return user;
+}
+
+/** For admin pages. Layouts do not protect pages, so every admin page calls this itself. */
+export async function requireAdmin(): Promise<AppUser> {
+  const user = await requireUser();
+  if (!can({ kind: "user", role: user.role }, "write-cohort")) redirect("/");
   return user;
 }

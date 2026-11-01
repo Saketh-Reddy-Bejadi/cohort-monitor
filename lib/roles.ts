@@ -4,6 +4,7 @@ export type Action =
   | "read"
   | "tick-task"
   | "write-cohort"
+  | "delete-cohort"
   | "manage-users";
 
 export function normalizeEmail(email: string | null | undefined): string {
@@ -39,6 +40,7 @@ export function publicRole(role: Role): "admin" | "user" {
 
 export function can(actor: Actor, action: Action): boolean {
   if (action === "read") return true;
+  // The API token can add and edit cohorts, but never delete them or manage users.
   if (actor.kind === "token") return action === "write-cohort";
   if (action === "tick-task") return true;
   return actor.role === "admin" || actor.role === "owner";

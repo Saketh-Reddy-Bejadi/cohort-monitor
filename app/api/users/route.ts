@@ -1,11 +1,11 @@
 import { authorize } from "@/lib/api-auth";
-import { normalizeEmail, roleChangeOutcome } from "@/lib/roles.ts";
-import { findUser, listUsers, setUserRole } from "@/lib/users";
+import { changeUserRole, listUsers } from "@/lib/users";
 
 export async function GET(request: Request) {
   const result = await authorize(request, "manage-users");
   if (result instanceof Response) return result;
-  return Response.json({ users: await listUsers() });
+  const viewerIsOwner = result.actor.kind === "user" && result.actor.role === "owner";
+  return Response.json({ users: await listUsers(viewerIsOwner) });
 }
 
 export async function PATCH(request: Request) {
@@ -16,12 +16,10 @@ export async function PATCH(request: Request) {
   if (!body || typeof body.email !== "string" || typeof body.role !== "string") {
     return Response.json({ error: "Send email and role" }, { status: 400 });
   }
-  if (result.email && normalizeEmail(body.email) === result.email) {
-    return Response.json({ error: "You cannot change your own role" }, { status: 400 });
-  }
-  const target = await findUser(body.email);
-  const outcome = roleChangeOutcome(result.actor, target, body.role);
+  const outcome = await changeUserRole(result.actor, result.email, body.email, body.role);
   switch (outcome) {
+    case "self":
+      return Response.json({ error: "You cannot change your own role" }, { status: 400 });
     case "bad-role":
       return Response.json({ error: "Role must be admin or user" }, { status: 400 });
     case "not-found":
@@ -29,8 +27,6 @@ export async function PATCH(request: Request) {
     case "forbidden":
       return Response.json({ error: "Not allowed" }, { status: 403 });
     case "apply":
-      await setUserRole(target!.email, body.role);
-      return Response.json({ ok: true });
     case "noop":
       return Response.json({ ok: true });
   }
