@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Select } from "@/components/ui/select";
-import type { Filters, StatusFilter } from "@/lib/planner/tasks-view.ts";
+import { DUE_LABELS, type Filters, type StatusFilter } from "@/lib/planner/tasks-view.ts";
 
 type Counts = Record<StatusFilter, number>;
 const SEGMENTS: { id: StatusFilter; label: string }[] = [
@@ -40,11 +40,12 @@ export function TaskFilters({
     if (f.cohort) p.set("cohort", f.cohort);
     if (f.owner) p.set("owner", f.owner);
     if (f.q) p.set("q", f.q);
+    if (f.due) p.set("due", f.due);
     const qs = p.toString();
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname));
   }
 
-  const filtered = current.cohort || current.owner || current.q;
+  const filtered = current.cohort || current.owner || current.q || current.due;
   return (
     <div className={`mb-5 space-y-3 transition-opacity ${pending ? "opacity-60" : ""}`}>
       <div role="group" aria-label="Status" className="flex flex-wrap gap-2">
@@ -61,6 +62,16 @@ export function TaskFilters({
             {s.label} <span className="opacity-70">{counts[s.id]}</span>
           </button>
         ))}
+        {current.due && (
+          <button
+            type="button" onClick={() => go({ due: undefined })}
+            aria-label={`${DUE_LABELS[current.due]}. Remove this filter`}
+            className="press inline-flex items-center gap-1.5 rounded-full border border-brand-600 bg-brand-50 px-3.5 py-1.5 text-sm font-medium text-brand-700"
+          >
+            {DUE_LABELS[current.due]}
+            <span className="icon-[heroicons--x-mark] size-4" />
+          </button>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <form
@@ -91,7 +102,7 @@ export function TaskFilters({
         </Select>
         {filtered && (
           <button
-            type="button" onClick={() => { setQ(""); go({ cohort: undefined, owner: undefined, q: undefined }); }}
+            type="button" onClick={() => { setQ(""); go({ cohort: undefined, owner: undefined, q: undefined, due: undefined }); }}
             className="press col-span-2 rounded-lg px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50 sm:col-span-1"
           >
             Clear filters
