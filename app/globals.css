@@ -132,6 +132,29 @@ h1, h2 { letter-spacing: -0.02em; line-height: 1.15; }
   .checkbox { width: 1.5rem; height: 1.5rem; }
 }
 
+/* The side panel. It slides in from the right and leaves the same way. */
+dialog.panel {
+  margin: 0 0 0 auto;
+  inset: 0 0 0 auto;
+  height: 100dvh;
+  max-height: none;
+  width: min(28rem, 100vw);
+  border: 0;
+  padding: 0;
+  background: #fff;
+  color: inherit;
+  box-shadow: -24px 0 60px rgb(15 23 42 / 0.18);
+}
+dialog.panel[open] { animation: panel-in 280ms var(--ease-settle) both; }
+dialog.panel[data-closing] { animation: panel-out 200ms cubic-bezier(0.64, 0, 0.78, 0) both; }
+dialog.panel::backdrop { background: rgb(15 23 42 / 0.35); backdrop-filter: blur(2px); }
+dialog.panel[open]::backdrop { animation: fade-in 280ms ease-out both; }
+dialog.panel[data-closing]::backdrop { animation: fade-out 200ms ease-in both; }
+@keyframes panel-in { from { transform: translateX(100%); } }
+@keyframes panel-out { to { transform: translateX(100%); } }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes fade-out { to { opacity: 0; } }
+
 /* Material layer: translucent, content can scroll under it. */
 .material {
   background: rgb(255 255 255 / 0.72);
@@ -140,6 +163,9 @@ h1, h2 { letter-spacing: -0.02em; line-height: 1.15; }
 
 @media (prefers-reduced-motion: reduce) {
   aside, aside * { transition-duration: 0.01ms !important; }
+  /* The panel fades instead of sliding. */
+  @keyframes panel-in { from { opacity: 0; } }
+  @keyframes panel-out { to { opacity: 0; } }
   /* Gentler equivalent: cross-fade only, no movement or blur. */
   @keyframes materialize { from { opacity: 0; } to { opacity: 1; } }
   @keyframes rise { from { opacity: 0; } to { opacity: 1; } }
@@ -147,6 +173,7 @@ h1, h2 { letter-spacing: -0.02em; line-height: 1.15; }
 }
 @media (prefers-reduced-transparency: reduce) {
   .material { background: #fff; backdrop-filter: none; }
+  dialog.panel::backdrop { backdrop-filter: none; }
 }
 @media (prefers-contrast: more) {
   * { scrollbar-color: #475569 transparent; }

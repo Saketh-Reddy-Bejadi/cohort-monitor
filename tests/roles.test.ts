@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   can,
+  canDeleteCustom,
   roleChangeOutcome,
   isAllowedEmail,
   publicRole,
@@ -42,6 +43,7 @@ test("role matrix", () => {
   const rows = [
     ["read", [true, true, true, true]],
     ["tick-task", [true, true, true, false]],
+    ["change-task", [true, true, true, false]],
     ["admin-panel", [false, true, true, false]],
     ["write-cohort", [false, true, true, true]],
     ["delete-cohort", [false, true, true, false]],
@@ -86,4 +88,16 @@ test("owner who never signed in looks the same as a signed-in owner", () => {
   assert.equal(resolveTarget(null, "me@codebasics.io", ""), null);
   const found = { role: "user" as const };
   assert.equal(resolveTarget(found, "x@codebasics.io", owner), found);
+});
+
+test("a one-off task is deleted by its creator or an admin, never by the token", () => {
+  const user: Actor = { kind: "user", role: "user" };
+  const admin: Actor = { kind: "user", role: "admin" };
+  const owner: Actor = { kind: "user", role: "owner" };
+  assert.equal(canDeleteCustom(user, "a@codebasics.io", "a@codebasics.io"), true);
+  assert.equal(canDeleteCustom(user, " A@CodeBasics.io ", "a@codebasics.io"), true);
+  assert.equal(canDeleteCustom(user, "b@codebasics.io", "a@codebasics.io"), false);
+  assert.equal(canDeleteCustom(admin, "b@codebasics.io", "a@codebasics.io"), true);
+  assert.equal(canDeleteCustom(owner, "b@codebasics.io", "a@codebasics.io"), true);
+  assert.equal(canDeleteCustom({ kind: "token" }, "a@codebasics.io", "a@codebasics.io"), false);
 });
