@@ -42,6 +42,7 @@ test("role matrix", () => {
     ["read", [true, true, true, true]],
     ["tick-task", [true, true, true, false]],
     ["write-cohort", [false, true, true, true]],
+    ["delete-cohort", [false, true, true, false]],
     ["manage-users", [false, true, true, false]],
   ] as const;
   for (const [action, expected] of rows) {

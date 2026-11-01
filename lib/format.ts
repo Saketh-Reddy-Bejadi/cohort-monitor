@@ -1,0 +1,20 @@
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** "2026-10-25" to "25 Oct 2026". No time zone maths, so it never shifts a day. */
+export function fmtDate(iso: string | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? "");
+  return m ? `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}` : "Not set";
+}
+
+export function fmtRupees(n: number | undefined): string {
+  return n === undefined ? "Not set" : `₹${n.toLocaleString("en-IN")}`;
+}
+
+/** A moment in India time, for example "1 Nov 2026, 8:15 pm". */
+export function fmtMoment(d: Date | undefined): string {
+  if (!d) return "Never";
+  return d.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric",
+    hour: "numeric", minute: "2-digit", hour12: true,
+  });
+}
