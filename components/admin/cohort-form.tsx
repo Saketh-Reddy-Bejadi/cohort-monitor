@@ -2,15 +2,14 @@
 
 import Link from "next/link";
 import { createContext, startTransition, useActionState, useContext } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select } from "@/components/ui/select";
 import type { CohortErrors } from "@/lib/planner/types.ts";
 import type { FormState } from "@/app/(app)/admin/actions";
 import { KINDS, STATUSES, type Cohort } from "@/lib/planner/types.ts";
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 type Initial = Partial<Record<keyof Cohort, string | number | boolean>>;
-
-const inputClass =
-  "w-full rounded-lg border bg-white px-3 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-brand-600 aria-[invalid=true]:border-red-500 border-slate-300 disabled:bg-slate-50 disabled:text-slate-500";
 
 type Ctx = { errors: CohortErrors; value: (name: keyof Cohort) => string };
 const FormCtx = createContext<Ctx>({ errors: {}, value: () => "" });
@@ -30,7 +29,7 @@ function Field({
         id={name} name={name} type={type} inputMode={inputMode}
         defaultValue={value(name)} aria-invalid={err ? true : undefined}
         aria-describedby={err ? `${name}-error` : hint ? `${name}-hint` : undefined}
-        className={inputClass}
+        className="control"
       />
       {err ? (
         <p id={`${name}-error`} role="alert" className="animate-rise mt-1 text-xs text-red-700">{err}</p>
@@ -41,19 +40,19 @@ function Field({
   );
 }
 
-function Select({ name, label, options }: { name: keyof Cohort; label: string; options: readonly string[] }) {
+function PickField({ name, label, options }: { name: keyof Cohort; label: string; options: readonly string[] }) {
   const { errors, value } = useContext(FormCtx);
   const err = errors[name];
   return (
     <div>
       <label htmlFor={name} className="mb-1 block text-sm font-medium">{label}</label>
-      <select
+      <Select
         id={name} name={name} defaultValue={value(name)} aria-invalid={err ? true : undefined}
-        aria-describedby={err ? `${name}-error` : undefined} className={inputClass}
+        aria-describedby={err ? `${name}-error` : undefined} className="w-full"
       >
         {name === "kind" && <option value="">Pick a kind</option>}
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
+      </Select>
       {err && <p id={`${name}-error`} role="alert" className="animate-rise mt-1 text-xs text-red-700">{err}</p>}
     </div>
   );
@@ -121,8 +120,8 @@ export function CohortForm({
           </div>
         )}
         <Field name="program" label="Program" />
-        <Select name="kind" label="Kind" options={KINDS} />
-        <Select name="status" label="Status" options={STATUSES} />
+        <PickField name="kind" label="Kind" options={KINDS} />
+        <PickField name="status" label="Status" options={STATUSES} />
       </>)}
 
       {section("Dates", <>
@@ -132,10 +131,9 @@ export function CohortForm({
         <Field name="standard_from" label="Standard price starts" type="date" />
         <Field name="enrol_close" label="Enrolment closes" type="date" />
         <Field name="waitlist_live" label="Waitlist goes live" type="date" hint="Leave blank to use the default" />
-        <label className="flex items-center gap-2 self-end pb-2 text-sm">
-          <input
-            type="checkbox" name="no_waitlist" defaultChecked={value("no_waitlist") === "true" || value("no_waitlist") === "on"}
-            className="size-4 accent-brand-600"
+        <label className="flex items-center gap-2.5 self-end pb-2 text-sm">
+          <Checkbox
+            name="no_waitlist" defaultChecked={value("no_waitlist") === "true" || value("no_waitlist") === "on"}
           />
           No waitlist for this cohort
         </label>

@@ -1,5 +1,7 @@
 import "server-only";
 import { getDb } from "../db";
+import { doneKeyPattern, type DoneMark } from "./engine.ts";
+import type { Holiday } from "./holidays.ts";
 import type { Cohort } from "./types.ts";
 
 export type StoredCohort = Cohort & { updated_at?: string; updated_by?: string };
@@ -30,6 +32,7 @@ function prepare(): Promise<void> {
     const db = await getDb();
     await db.collection("planner_cohorts").createIndex({ id: 1 }, { unique: true });
     await db.collection("planner_cohorts").createIndex({ name: 1 });
+    await db.collection("planner_done").createIndex({ key: 1 }, { unique: true });
     const settings = db.collection<{ name: string }>("planner_settings");
     await settings.createIndex({ name: 1 }, { unique: true });
     // Insert the cohort first and the marker last, so a failed insert is retried
@@ -91,6 +94,8 @@ const meta = (by: string) => ({ updated_at: new Date(), updated_by: by });
 export async function createCohort(cohort: Cohort, by: string): Promise<boolean> {
   try {
     await (await cohorts()).insertOne({ ...cohort, ...meta(by) });
+    // Clears marks left behind if an earlier delete of this id stopped halfway.
+    await deleteDoneFor(cohort.id);
     return true;
   } catch (e) {
     if ((e as { code?: number }).code === 11000) return false;
@@ -122,5 +127,64 @@ export async function upsertCohort(cohort: Cohort, by: string): Promise<void> {
 export async function deleteCohort(id: string): Promise<boolean> {
   assertId(id);
   const res = await (await cohorts()).deleteOne({ id });
+  // A cohort made later with the same id must not inherit old ticks.
+  if (res.deletedCount === 1) await deleteDoneFor(id);
   return res.deletedCount === 1;
+}
+
+type DoneDoc = { key: string; done: boolean; by: string; at: Date };
+
+async function doneMarks() {
+  await prepare();
+  return (await getDb()).collection<DoneDoc>("planner_done");
+}
+
+/** Every done mark, by task key. */
+export async function listDone(): Promise<Record<string, DoneMark>> {
+  const docs = await (await doneMarks()).find().toArray();
+  return Object.fromEntries(docs.map((d) => [d.key, { done: d.done, by: d.by, at: d.at.toISOString() }]));
+}
+
+/** Tick or untick a task. The mark is kept when unticked, so we still know who did what. */
+export async function setDone(key: string, done: boolean, by: string): Promise<void> {
+  if (typeof key !== "string") throw new Error("Task key must be text");
+  await (await doneMarks()).updateOne({ key }, { $set: { done, by, at: new Date() } }, { upsert: true });
+}
+
+async function deleteDoneFor(cohortId: string): Promise<void> {
+  await (await doneMarks()).deleteMany({ key: { $regex: doneKeyPattern(cohortId) } });
+}
+
+async function settingsDocs() {
+  await prepare();
+  return (await getDb()).collection<{ name: string; holidays?: Holiday[]; updated_at?: Date; updated_by?: string }>("planner_settings");
+}
+
+/** The holiday list and when it was last saved. Empty until an admin saves one. */
+export async function getHolidaysDoc(): Promise<{ holidays: Holiday[]; updated_at: string }> {
+  const doc = await (await settingsDocs()).findOne({ name: "holidays" });
+  return { holidays: doc?.holidays ?? [], updated_at: doc?.updated_at?.toISOString() ?? "" };
+}
+
+export async function getHolidays(): Promise<Holiday[]> {
+  return (await getHolidaysDoc()).holidays;
+}
+
+/**
+ * Save the holiday list. `loadedAt` is the `updated_at` the editor was opened with
+ * ("" if nothing was saved yet). If someone saved since then, nothing is written and
+ * this returns null, so two admins do not overwrite each other and re-date every task.
+ * Returns the new `updated_at` on success.
+ */
+export async function saveHolidays(holidays: Holiday[], by: string, loadedAt: string): Promise<string | null> {
+  const updated_at = new Date();
+  const filter = { name: "holidays", updated_at: loadedAt ? new Date(loadedAt) : { $exists: false } };
+  try {
+    // The unique index on name turns a lost race on the first save into 11000.
+    await (await settingsDocs()).updateOne(filter, { $set: { holidays, updated_at, updated_by: by } }, { upsert: true });
+  } catch (e) {
+    if ((e as { code?: number }).code === 11000) return null;
+    throw e;
+  }
+  return updated_at.toISOString();
 }

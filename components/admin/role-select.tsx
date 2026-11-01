@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Select } from "@/components/ui/select";
 import { changeRoleAction } from "@/app/(app)/admin/actions";
 
 export function RoleSelect({ email, role }: { email: string; role: "admin" | "user" }) {
@@ -29,16 +30,17 @@ export function RoleSelect({ email, role }: { email: string; role: "admin" | "us
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
-        <select
+        <Select
+          compact
           value={value}
           aria-label={`Role for ${email}`}
           disabled={pending}
           onChange={(e) => onChange(e.target.value as "admin" | "user")}
-          className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-brand-600 disabled:opacity-60"
+          className="w-28"
         >
           <option value="user">user</option>
           <option value="admin">admin</option>
-        </select>
+        </Select>
         {pending && <span className="icon-[heroicons--arrow-path] size-4 animate-spin text-slate-400 motion-reduce:animate-none" />}
       </div>
       {error && (

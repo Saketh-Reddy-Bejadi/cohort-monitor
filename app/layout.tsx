@@ -5,7 +5,7 @@ import "./globals.css";
 const manrope = Manrope({ variable: "--font-manrope", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Cohort Monitor",
+  title: { default: "Cohort Monitor", template: "%s · Cohort Monitor" },
   description: "Plan, track and check every Codebasics cohort launch.",
 };
 

@@ -15,6 +15,7 @@ async function Sidebar() {
     <>
       <nav id="sidebar-nav" aria-label="Main" className="animate-rise flex gap-1 px-3 md:flex-col">
         <NavLink href="/" icon="icon-[heroicons--squares-2x2]">Overview</NavLink>
+        <NavLink href="/tasks" icon="icon-[heroicons--clipboard-document-check]">Tasks</NavLink>
         {isAdmin && <NavLink href="/admin" icon="icon-[heroicons--shield-check]">Admin</NavLink>}
       </nav>
       <div className="hidden flex-1 md:block" />

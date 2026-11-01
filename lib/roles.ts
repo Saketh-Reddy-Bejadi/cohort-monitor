@@ -5,6 +5,7 @@ export type Action =
   | "tick-task"
   | "admin-panel"
   | "write-cohort"
+  | "write-holidays"
   | "delete-cohort"
   | "manage-users";
 
