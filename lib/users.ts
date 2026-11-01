@@ -57,21 +57,25 @@ export async function recordLogin(email: string, name: string, oid: string): Pro
   const e = normalizeEmail(email);
   const col = await users();
   let doc;
-  try {
-    // Matches a new account, an older account with no oid yet, or the same oid.
-    // An account tied to a different oid misses the filter, the upsert then hits
-    // the unique email index, and the sign-in is refused.
-    doc = await col.findOneAndUpdate(
-      { email: e, $or: [{ oid }, { oid: { $exists: false } }] },
-      {
-        $set: { name, oid, lastLoginAt: new Date() },
-        $setOnInsert: { email: e, role: "user" },
-      },
-      { upsert: true, returnDocument: "after" },
-    );
-  } catch (err) {
-    if ((err as { code?: number }).code === 11000) return null;
-    throw err;
+  // Two first logins at once can both try to insert; the loser gets 11000 and
+  // retries once, then matches the account the winner made. A different oid
+  // fails again on the retry, and the sign-in is refused.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      // Matches a new account, an older account with no oid yet, or the same oid.
+      doc = await col.findOneAndUpdate(
+        { email: e, $or: [{ oid }, { oid: { $exists: false } }] },
+        {
+          $set: { name, oid, lastLoginAt: new Date() },
+          $setOnInsert: { email: e, role: "user" },
+        },
+        { upsert: true, returnDocument: "after" },
+      );
+      break;
+    } catch (err) {
+      if ((err as { code?: number }).code !== 11000) throw err;
+      if (attempt >= 1) return null;
+    }
   }
   const role = resolveRole(e, doc?.role, ownerEmail());
   if (doc?.role !== role) await col.updateOne({ email: e }, { $set: { role } });

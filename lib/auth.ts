@@ -1,7 +1,6 @@
 import NextAuth from "next-auth";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
-import { pickEmail, tenantMatches } from "./identity.ts";
-import { isAllowedEmail } from "./roles.ts";
+import { checkSignIn, pickEmail } from "./identity.ts";
 import { recordLogin } from "./users";
 
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
@@ -20,16 +19,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
     pages: { signIn: "/signin", error: "/signin" },
     callbacks: {
       async signIn({ profile, user }) {
-        // Same tenant and same domain, checked on the identity the token proves.
-        if (!tenantMatches(profile, tenant)) return "/signin?error=domain";
-        const email = pickEmail(profile, user.email);
-        if (!isAllowedEmail(email, process.env.ALLOWED_EMAIL_DOMAIN ?? "")) {
-          return "/signin?error=domain";
-        }
-        // The oid does not change when an email is renamed or reused.
-        const oid = profile?.oid;
-        if (typeof oid !== "string" || !oid) return "/signin?error=identity";
-        if (!(await recordLogin(email, user.name ?? email, oid))) return "/signin?error=identity";
+        const check = checkSignIn(profile, user.email, tenant, process.env.ALLOWED_EMAIL_DOMAIN ?? "");
+        if (!check.ok) return `/signin?error=${check.error}`;
+        if (!(await recordLogin(check.email, user.name ?? check.email, check.oid))) return "/signin?error=identity";
         return true;
       },
       jwt({ token, profile, user }) {
