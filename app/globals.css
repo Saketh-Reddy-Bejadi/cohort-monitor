@@ -1,26 +1,55 @@
 @import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@plugin "@iconify/tailwind4";
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  /* Codebasics primary: the site's theme colour (codebasics.io, theme-color). */
+  --color-brand-50: #eef4fb;
+  --color-brand-100: #d9e6f5;
+  --color-brand-600: #2767b1;
+  --color-brand-700: #1f5290;
+  /* Critically damped feel: fast start, no overshoot (damping 1.0). */
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-materialize: materialize 450ms var(--ease-settle) backwards;
+  --animate-rise: rise 450ms var(--ease-settle) backwards;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@keyframes materialize {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); filter: blur(8px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+/* Tight tracking on large text, comfortable leading on body. */
+h1, h2 { letter-spacing: -0.02em; line-height: 1.15; }
+
+/* Feedback on press, not on release. Instant. */
+.press { transition: transform 100ms ease-out, background-color 150ms ease-out; }
+.press:active:not(:disabled) { transform: scale(0.97); }
+
+/* Material layer: translucent, content can scroll under it. */
+.material {
+  background: rgb(255 255 255 / 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Gentler equivalent: cross-fade only, no movement or blur. */
+  @keyframes materialize { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes rise { from { opacity: 0; } to { opacity: 1; } }
+  .press:active:not(:disabled) { transform: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .material { background: #fff; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  .material { background: #fff; backdrop-filter: none; border-color: #0f172a; }
 }
