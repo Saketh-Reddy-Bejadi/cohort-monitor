@@ -42,7 +42,7 @@ export function SidebarShell({ children }: { children: React.ReactNode }) {
   return (
     <aside
       data-collapsed={collapsed}
-      className="group/sb material sticky top-0 z-10 flex w-full flex-col gap-3 border-b border-slate-200/70 transition-[width] duration-250 ease-(--ease-settle) md:h-screen md:w-[232px] md:border-b-0 md:border-r md:data-[collapsed=true]:w-[72px]"
+      className="group/sb material z-10 flex md:sticky md:top-0 w-full flex-col gap-3 border-b border-slate-200/70 transition-[width] duration-250 ease-(--ease-settle) md:h-screen md:w-[232px] md:border-b-0 md:border-r md:data-[collapsed=true]:w-[72px]"
     >
       <div className="flex items-center justify-between gap-2 p-4 pb-0 md:group-data-[collapsed=true]/sb:flex-col md:group-data-[collapsed=true]/sb:px-0">
         <Logo size={36} />

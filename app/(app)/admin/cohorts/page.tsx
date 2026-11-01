@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { DeleteButton } from "@/components/admin/delete-button";
@@ -5,6 +6,8 @@ import { fmtDate, fmtRupees } from "@/lib/format";
 import { listCohorts } from "@/lib/planner/store";
 import { requireAdmin } from "@/lib/session";
 import { deleteCohortAction } from "../actions";
+
+export const metadata: Metadata = { title: "Cohorts" };
 
 async function CohortTable() {
   await requireAdmin();
@@ -18,13 +21,13 @@ async function CohortTable() {
     );
   }
   return (
-    <div className="animate-rise overflow-x-auto rounded-2xl border border-slate-200">
-      <table className="w-full min-w-[820px] text-left text-sm">
+    <div className="animate-rise relative overflow-x-auto rounded-2xl border border-slate-200">
+      <table className="w-full min-w-[900px] text-left text-sm">
         <caption className="sr-only">All cohorts</caption>
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
           <tr>
             {["Cohort", "Kind", "Status", "Launch", "Classes start", "Standard price", "Enrolment closes", ""].map((h, i) => (
-              <th key={i} scope="col" className="px-4 py-3 font-semibold">
+              <th key={i} scope="col" className="whitespace-nowrap px-4 py-3 font-semibold">
                 {h || <span className="sr-only">Actions</span>}
               </th>
             ))}
@@ -33,20 +36,20 @@ async function CohortTable() {
         <tbody className="divide-y divide-slate-100">
           {cohorts.map((c) => (
             <tr key={c.id} className="hover:bg-slate-50/60">
-              <td className="px-4 py-3">
+              <td className="min-w-40 px-4 py-3">
                 <p className="font-semibold">{c.name}</p>
                 <p className="text-xs text-slate-500">{c.program || c.id}</p>
               </td>
-              <td className="px-4 py-3">{c.kind}</td>
+              <td className="whitespace-nowrap px-4 py-3">{c.kind}</td>
               <td className="px-4 py-3">
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${c.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
                   {c.status}
                 </span>
               </td>
-              <td className="px-4 py-3">{fmtDate(c.launch)}</td>
-              <td className="px-4 py-3">{fmtDate(c.start)}</td>
-              <td className="px-4 py-3">{fmtRupees(c.standard_price)}</td>
-              <td className="px-4 py-3">{fmtDate(c.enrol_close)}</td>
+              <td className="whitespace-nowrap px-4 py-3">{fmtDate(c.launch)}</td>
+              <td className="whitespace-nowrap px-4 py-3">{fmtDate(c.start)}</td>
+              <td className="whitespace-nowrap px-4 py-3">{fmtRupees(c.standard_price)}</td>
+              <td className="whitespace-nowrap px-4 py-3">{fmtDate(c.enrol_close)}</td>
               <td className="px-4 py-3">
                 <div className="flex items-center justify-end gap-1">
                   <Link

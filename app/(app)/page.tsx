@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { requireUser } from "@/lib/session";
+
+export const metadata: Metadata = { title: "Overview" };
 
 // Layouts do not protect their pages. Every page that shows data must check
 // the user itself, before it reads anything.

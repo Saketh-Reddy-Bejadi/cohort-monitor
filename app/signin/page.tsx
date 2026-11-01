@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { signInWithMicrosoft } from "@/app/actions";
 import { Logo } from "@/components/logo";
 import { SubmitButton } from "@/components/submit-button";
 import { getCurrentUser } from "@/lib/session";
+
+export const metadata: Metadata = { title: "Sign in" };
 
 const messages: Record<string, string> = {
   domain: "That account is not allowed. Use your @codebasics.io email.",
