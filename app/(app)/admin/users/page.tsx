@@ -1,20 +1,23 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { RoleSelect } from "@/components/admin/role-select";
 import { fmtMoment } from "@/lib/format";
 import { requireAdmin } from "@/lib/session";
 import { listUsers } from "@/lib/users";
 
+export const metadata: Metadata = { title: "Users" };
+
 async function UserTable() {
   const me = await requireAdmin();
   const users = await listUsers(me.role === "owner");
   return (
-    <div className="animate-rise overflow-x-auto rounded-2xl border border-slate-200">
+    <div className="animate-rise relative overflow-x-auto rounded-2xl border border-slate-200">
       <table className="w-full min-w-[640px] text-left text-sm">
         <caption className="sr-only">Everyone who has signed in</caption>
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
           <tr>
             {["Name", "Email", "Role", "Last sign in"].map((h) => (
-              <th key={h} scope="col" className="px-4 py-3 font-semibold">{h}</th>
+              <th key={h} scope="col" className="whitespace-nowrap px-4 py-3 font-semibold">{h}</th>
             ))}
           </tr>
         </thead>

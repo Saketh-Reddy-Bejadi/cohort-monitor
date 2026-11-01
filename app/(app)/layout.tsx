@@ -19,11 +19,11 @@ async function Sidebar() {
         {isAdmin && <NavLink href="/admin" icon="icon-[heroicons--shield-check]">Admin</NavLink>}
       </nav>
       <div className="hidden flex-1 md:block" />
-      <div className="animate-rise border-t border-slate-200/70 p-4 text-sm md:group-data-[collapsed=true]/sb:flex md:group-data-[collapsed=true]/sb:flex-col md:group-data-[collapsed=true]/sb:items-center md:group-data-[collapsed=true]/sb:px-0">
-        <div className={hideCollapsed}>
+      <div className="animate-rise flex items-center justify-between gap-3 border-t border-slate-200/70 px-4 py-1 text-sm md:block md:py-4 md:group-data-[collapsed=true]/sb:flex md:group-data-[collapsed=true]/sb:flex-col md:group-data-[collapsed=true]/sb:items-center md:group-data-[collapsed=true]/sb:px-0">
+        <div className={`${hideCollapsed} min-w-0`}>
           <p className="truncate font-semibold" title={user.email}>{user.email}</p>
           {/* You see your own role as it is. Only the owner is ever "owner". */}
-          <p className="mb-3 capitalize text-slate-500">{user.role}</p>
+          <p className="capitalize text-slate-500 md:mb-3">{user.role}</p>
         </div>
         {/* Collapsed: a small circle with your initial stands in for the email. */}
         <span
@@ -37,10 +37,10 @@ async function Sidebar() {
             type="submit"
             title="Sign out"
             aria-label="Sign out"
-            className="press flex items-center gap-2 rounded-lg px-2 py-1.5 text-slate-600 hover:bg-brand-50 hover:text-brand-700 md:group-data-[collapsed=true]/sb:px-1.5"
+            className="press flex shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 text-slate-600 hover:bg-brand-50 hover:text-brand-700 md:group-data-[collapsed=true]/sb:px-1.5"
           >
             <span className="icon-[heroicons--arrow-left-start-on-rectangle] size-5 shrink-0" />
-            <span className={hideCollapsed}>Sign out</span>
+            <span className={`hidden md:inline ${hideCollapsed}`}>Sign out</span>
           </button>
         </form>
       </div>
