@@ -13,9 +13,10 @@ async function Sidebar() {
   const isAdmin = can({ kind: "user", role: user.role }, "admin-panel");
   return (
     <>
-      <nav id="sidebar-nav" aria-label="Main" className="animate-rise flex gap-1 px-3 md:flex-col">
+      <nav id="sidebar-nav" aria-label="Main" className="animate-rise flex flex-wrap gap-1 px-3 md:flex-col md:flex-nowrap">
         <NavLink href="/" icon="icon-[heroicons--squares-2x2]">Overview</NavLink>
         <NavLink href="/tasks" icon="icon-[heroicons--clipboard-document-check]">Tasks</NavLink>
+        <NavLink href="/website" icon="icon-[heroicons--globe-alt]">Website</NavLink>
         {isAdmin && <NavLink href="/admin" icon="icon-[heroicons--shield-check]">Admin</NavLink>}
       </nav>
       <div className="hidden flex-1 md:block" />
