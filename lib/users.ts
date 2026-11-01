@@ -21,11 +21,18 @@ export type UserDoc = {
   // OWNER_EMAIL decides who is owner: a stored "owner" on any other account counts as user.
   role: string;
   lastLoginAt: Date;
+  role_changed_by?: string;
+  role_changed_at?: Date;
 };
 
 export type AppUser = { email: string; name: string; role: Role };
 
-const ownerEmail = () => process.env.OWNER_EMAIL ?? "";
+// Without an owner nobody is protected from demotion, so refuse to run.
+const ownerEmail = () => {
+  const owner = process.env.OWNER_EMAIL?.trim();
+  if (!owner) throw new Error("OWNER_EMAIL is not set");
+  return owner;
+};
 
 let indexReady: Promise<unknown> | undefined;
 
@@ -116,10 +123,13 @@ export async function changeUserRole(
   if (actorEmail && normalizeEmail(email) === normalizeEmail(actorEmail)) return "self";
   const target = resolveTarget(await findUser(email), email, ownerEmail());
   const outcome = roleChangeOutcome(actor, target, role);
-  if (outcome === "apply") await setUserRole(email, role as "admin" | "user");
+  if (outcome === "apply") await setUserRole(email, role as "admin" | "user", actorEmail ?? "api-token");
   return outcome;
 }
 
-async function setUserRole(email: string, role: "admin" | "user") {
-  await (await users()).updateOne({ email: normalizeEmail(email) }, { $set: { role } });
+async function setUserRole(email: string, role: "admin" | "user", by: string) {
+  await (await users()).updateOne(
+    { email: normalizeEmail(email) },
+    { $set: { role, role_changed_by: by, role_changed_at: new Date() } },
+  );
 }

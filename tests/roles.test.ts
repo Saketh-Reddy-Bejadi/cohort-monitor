@@ -42,6 +42,7 @@ test("role matrix", () => {
   const rows = [
     ["read", [true, true, true, true]],
     ["tick-task", [true, true, true, false]],
+    ["admin-panel", [false, true, true, false]],
     ["write-cohort", [false, true, true, true]],
     ["delete-cohort", [false, true, true, false]],
     ["manage-users", [false, true, true, false]],

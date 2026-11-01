@@ -3,6 +3,7 @@ export type Actor = { kind: "user"; role: Role } | { kind: "token" };
 export type Action =
   | "read"
   | "tick-task"
+  | "admin-panel"
   | "write-cohort"
   | "delete-cohort"
   | "manage-users";

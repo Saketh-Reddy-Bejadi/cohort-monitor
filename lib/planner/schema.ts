@@ -127,9 +127,18 @@ export function parseCohort(input: Record<string, unknown>): ParseResult {
     if (noWaitlist && out.waitlist_live) fail("waitlist_live", "Clear this date or untick No waitlist");
   }
 
-  // Both dates are real here, and YYYY-MM-DD strings compare in date order.
-  if (typeof out.launch === "string" && typeof out.enrol_close === "string" && out.launch > out.enrol_close) {
-    fail("enrol_close", "Enrolment cannot close before it opens");
+  // Dates that are set are real here, and YYYY-MM-DD strings compare in date order.
+  // Each one must not be before the one set before it in this list.
+  const ORDER = [
+    ["launch", "launch"], ["ic_close", "IC close"], ["standard_from", "standard price start"], ["enrol_close", "enrolment close"],
+  ] as const;
+  let prev: (typeof ORDER)[number] | undefined;
+  for (const cur of ORDER) {
+    const v = out[cur[0]];
+    if (typeof v !== "string") continue;
+    const p = prev && out[prev[0]];
+    if (prev && typeof p === "string" && v < p) fail(cur[0], `Cannot be before ${prev[1]}`);
+    prev = cur;
   }
 
   return Object.keys(errors).length > 0

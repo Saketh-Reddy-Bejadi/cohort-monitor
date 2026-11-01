@@ -24,6 +24,6 @@ export async function requireUser(): Promise<AppUser> {
 /** For admin pages. Layouts do not protect pages, so every admin page calls this itself. */
 export async function requireAdmin(): Promise<AppUser> {
   const user = await requireUser();
-  if (!can({ kind: "user", role: user.role }, "write-cohort")) redirect("/");
+  if (!can({ kind: "user", role: user.role }, "admin-panel")) redirect("/");
   return user;
 }

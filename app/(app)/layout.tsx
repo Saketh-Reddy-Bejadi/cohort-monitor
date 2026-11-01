@@ -10,7 +10,7 @@ const hideCollapsed = "md:group-data-[collapsed=true]/sb:hidden";
 
 async function Sidebar() {
   const user = await requireUser();
-  const isAdmin = can({ kind: "user", role: user.role }, "write-cohort");
+  const isAdmin = can({ kind: "user", role: user.role }, "admin-panel");
   return (
     <>
       <nav id="sidebar-nav" aria-label="Main" className="animate-rise flex gap-1 px-3 md:flex-col">

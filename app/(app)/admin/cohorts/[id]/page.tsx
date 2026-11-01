@@ -14,7 +14,7 @@ async function EditCohort({ params }: { params: PageProps<"/admin/cohorts/[id]">
   return (
     <>
       <h2 className="mb-4 text-lg font-bold">Edit {cohort.name}</h2>
-      <CohortForm action={updateCohortAction.bind(null, cohort.id)} mode="edit" initial={cohort} />
+      <CohortForm action={updateCohortAction.bind(null, cohort.id, cohort.updated_at)} mode="edit" initial={cohort} />
     </>
   );
 }

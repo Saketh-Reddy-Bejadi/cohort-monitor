@@ -18,9 +18,9 @@ export type FormState = {
 /** Server actions can be called directly, so each one checks the user itself. */
 async function authorizeAction(action: Action) {
   const user = await getCurrentUser();
-  if (!user) throw new Error("Sign in required");
+  if (!user) redirect("/signin");
   const actor = { kind: "user", role: user.role } as const;
-  if (!can(actor, action)) throw new Error("Not allowed");
+  if (!can(actor, action)) redirect("/");
   return { user, actor };
 }
 
@@ -41,14 +41,16 @@ export async function createCohortAction(_prev: FormState, formData: FormData): 
   redirect("/admin/cohorts");
 }
 
-export async function updateCohortAction(id: string, _prev: FormState, formData: FormData): Promise<FormState> {
+export async function updateCohortAction(id: string, loadedAt: string | undefined, _prev: FormState, formData: FormData): Promise<FormState> {
   const { user } = await authorizeAction("write-cohort");
   // The id comes from the page address, never from the form, so it cannot be changed here.
   const values = { ...formValues(formData), id };
   const parsed = parseCohort(values);
   if (!parsed.ok) return { errors: parsed.errors, values };
-  if (!(await replaceCohort(parsed.cohort, user.email))) {
-    return { message: "This cohort no longer exists. It may have been deleted.", values };
+  const saved = await replaceCohort(parsed.cohort, user.email, loadedAt);
+  if (saved === "missing") return { message: "This cohort no longer exists. It may have been deleted.", values };
+  if (saved === "stale") {
+    return { message: "Someone else saved this cohort after you opened it. Reload the page to see their changes, then edit again.", values };
   }
   redirect("/admin/cohorts");
 }
@@ -63,13 +65,16 @@ const ROLE_MESSAGES = {
   self: "You cannot change your own role.",
   "bad-role": "Role must be admin or user.",
   "not-found": "That user was not found.",
-  forbidden: "You are not allowed to change roles.",
 } as const;
 
 export async function changeRoleAction(email: string, role: string): Promise<{ error?: string }> {
   const { user, actor } = await authorizeAction("manage-users");
   const outcome = await changeUserRole(actor, user.email, email, role);
-  if (outcome !== "apply" && outcome !== "noop") return { error: ROLE_MESSAGES[outcome] };
-  refresh();
-  return {};
+  if (outcome === "apply" || outcome === "noop") {
+    refresh();
+    return {};
+  }
+  // authorizeAction already checked this, so it only guards against the two drifting apart.
+  if (outcome === "forbidden") redirect("/");
+  return { error: ROLE_MESSAGES[outcome] };
 }
