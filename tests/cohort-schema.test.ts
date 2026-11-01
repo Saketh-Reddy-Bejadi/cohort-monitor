@@ -100,3 +100,10 @@ test("many errors are reported together, one per field", () => {
   const e = errors({ name: "", kind: "x", start: "bad", ic_price: "bad" });
   assert.deepEqual(Object.keys(e).sort(), ["ic_price", "kind", "name", "start"]);
 });
+
+test("price and enrolment dates must be in order", () => {
+  assert.ok(errors({ ...base, launch: "2026-11-10", ic_close: "2026-11-01" }).ic_close);
+  assert.ok(errors({ ...base, ic_close: "2026-11-10", standard_from: "2026-11-01" }).standard_from);
+  assert.ok(errors({ ...base, standard_from: "2026-11-12", enrol_close: "2026-11-11" }).enrol_close);
+  ok({ ...base, launch: "2026-11-01", ic_close: "2026-11-10", standard_from: "2026-11-11", enrol_close: "2026-11-12" });
+});

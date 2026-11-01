@@ -29,13 +29,19 @@ function prepare(): Promise<void> {
   ready ??= (async () => {
     const db = await getDb();
     await db.collection("planner_cohorts").createIndex({ id: 1 }, { unique: true });
+    await db.collection("planner_cohorts").createIndex({ name: 1 });
     const settings = db.collection<{ name: string }>("planner_settings");
     await settings.createIndex({ name: 1 }, { unique: true });
-    // The unique index makes this safe when two processes start together:
-    // only one of them inserts the "seed" marker, so only one seeds.
-    const res = await settings.updateOne({ name: "seed" }, { $setOnInsert: { name: "seed" } }, { upsert: true });
-    if (res.upsertedCount === 1) {
-      await db.collection<Doc>("planner_cohorts").insertOne({ ...SEED, updated_at: new Date(), updated_by: "seed" });
+    // Insert the cohort first and the marker last, so a failed insert is retried
+    // on the next start. If two processes start together, the unique id index
+    // makes the second insert fail with 11000, which is fine.
+    if (!(await settings.findOne({ name: "seed" }))) {
+      try {
+        await db.collection<Doc>("planner_cohorts").insertOne({ ...SEED, updated_at: new Date(), updated_by: "seed" });
+      } catch (e) {
+        if ((e as { code?: number }).code !== 11000) throw e;
+      }
+      await settings.updateOne({ name: "seed" }, { $setOnInsert: { name: "seed" } }, { upsert: true });
     }
   })().catch((e) => {
     ready = undefined;
@@ -61,7 +67,20 @@ export async function listCohorts(): Promise<StoredCohort[]> {
   return docs.map(toCohort);
 }
 
+/** An id that is not text could be a Mongo operator object, so refuse it. */
+function assertId(id: unknown): asserts id is string {
+  if (typeof id !== "string") throw new Error("Cohort id must be text");
+}
+
+/** The cohort without who last saved it, for people who cannot edit cohorts. */
+export function withoutAuthor(c: StoredCohort): StoredCohort {
+  const { updated_by, ...rest } = c;
+  void updated_by;
+  return rest;
+}
+
 export async function getCohort(id: string): Promise<StoredCohort | null> {
+  assertId(id);
   const doc = await (await cohorts()).findOne({ id });
   return doc ? toCohort(doc) : null;
 }
@@ -79,10 +98,20 @@ export async function createCohort(cohort: Cohort, by: string): Promise<boolean>
   }
 }
 
-/** Replace the whole cohort with this id. Returns false when it does not exist. */
-export async function replaceCohort(cohort: Cohort, by: string): Promise<boolean> {
-  const res = await (await cohorts()).replaceOne({ id: cohort.id }, { ...cohort, ...meta(by) });
-  return res.matchedCount === 1;
+/**
+ * Replace the whole cohort with this id. When `loadedAt` is given, the save only
+ * goes through if nobody else saved since then, so edits do not overwrite each other.
+ */
+export async function replaceCohort(
+  cohort: Cohort,
+  by: string,
+  loadedAt?: string,
+): Promise<"ok" | "missing" | "stale"> {
+  const col = await cohorts();
+  const filter = loadedAt ? { id: cohort.id, updated_at: new Date(loadedAt) } : { id: cohort.id };
+  const res = await col.replaceOne(filter, { ...cohort, ...meta(by) });
+  if (res.matchedCount === 1) return "ok";
+  return (await col.findOne({ id: cohort.id })) ? "stale" : "missing";
 }
 
 /** Create or replace by id. Used by the API. */
@@ -91,6 +120,7 @@ export async function upsertCohort(cohort: Cohort, by: string): Promise<void> {
 }
 
 export async function deleteCohort(id: string): Promise<boolean> {
+  assertId(id);
   const res = await (await cohorts()).deleteOne({ id });
   return res.deletedCount === 1;
 }

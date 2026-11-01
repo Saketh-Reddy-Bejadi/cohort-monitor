@@ -1,5 +1,6 @@
+import { can } from "@/lib/roles.ts";
 import { authorize } from "@/lib/api-auth";
-import { deleteCohort, getCohort } from "@/lib/planner/store";
+import { deleteCohort, getCohort, withoutAuthor } from "@/lib/planner/store";
 
 export async function GET(request: Request, ctx: RouteContext<"/api/cohorts/[id]">) {
   const result = await authorize(request, "read");
@@ -7,7 +8,7 @@ export async function GET(request: Request, ctx: RouteContext<"/api/cohorts/[id]
   const { id } = await ctx.params;
   const cohort = await getCohort(id);
   return cohort
-    ? Response.json({ cohort })
+    ? Response.json({ cohort: can(result.actor, "write-cohort") ? cohort : withoutAuthor(cohort) })
     : Response.json({ error: "Cohort not found" }, { status: 404 });
 }
 
