@@ -3,6 +3,7 @@ export type Actor = { kind: "user"; role: Role } | { kind: "token" };
 export type Action =
   | "read"
   | "tick-task"
+  | "change-task"
   | "admin-panel"
   | "write-cohort"
   | "write-holidays"
@@ -44,8 +45,15 @@ export function can(actor: Actor, action: Action): boolean {
   if (action === "read") return true;
   // The API token can add and edit cohorts, but never delete them or manage users.
   if (actor.kind === "token") return action === "write-cohort";
-  if (action === "tick-task") return true;
+  // Anyone signed in can tick tasks, move a date and add a one-off task. The API token cannot.
+  if (action === "tick-task" || action === "change-task") return true;
   return actor.role === "admin" || actor.role === "owner";
+}
+
+/** A one-off task can be deleted by the person who added it, or by an admin. Never by the API token. */
+export function canDeleteCustom(actor: Actor, email: string, addedBy: string): boolean {
+  if (actor.kind !== "user") return false;
+  return normalizeEmail(addedBy) === normalizeEmail(email) || can(actor, "admin-panel");
 }
 
 /**

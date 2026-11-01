@@ -29,3 +29,9 @@ export function fmtDay(iso: string | undefined): string {
   const dow = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))).getUTCDay();
   return `${DAYS[dow]} ${Number(m[3])} ${MONTHS[Number(m[2]) - 1]}`;
 }
+
+/** "2026-11-08" to "Sun 8 Nov 2026". For lists that run over more than one year. */
+export function fmtDayYear(iso: string | undefined): string {
+  const m = /^(\d{4})-/.exec(iso ?? "");
+  return m ? `${fmtDay(iso)} ${m[1]}` : "Not set";
+}

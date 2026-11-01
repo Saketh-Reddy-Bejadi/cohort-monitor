@@ -1,7 +1,8 @@
 import "server-only";
 import { getDb } from "../db";
-import { doneKeyPattern, type DoneMark } from "./engine.ts";
-import type { Holiday } from "./holidays.ts";
+import { doneKeyPattern, type Custom, type DoneMark, type Override } from "./engine.ts";
+import type { Holiday, HolidayChange, HolidayFieldErrors } from "./holidays.ts";
+import type { CustomInput } from "./task-input.ts";
 import type { Cohort } from "./types.ts";
 
 export type StoredCohort = Cohort & { updated_at?: string; updated_by?: string };
@@ -33,6 +34,8 @@ function prepare(): Promise<void> {
     await db.collection("planner_cohorts").createIndex({ id: 1 }, { unique: true });
     await db.collection("planner_cohorts").createIndex({ name: 1 });
     await db.collection("planner_done").createIndex({ key: 1 }, { unique: true });
+    await db.collection("planner_overrides").createIndex({ key: 1 }, { unique: true });
+    await db.collection("planner_customs").createIndex({ id: 1 }, { unique: true });
     const settings = db.collection<{ name: string }>("planner_settings");
     await settings.createIndex({ name: 1 }, { unique: true });
     // Insert the cohort first and the marker last, so a failed insert is retried
@@ -94,8 +97,8 @@ const meta = (by: string) => ({ updated_at: new Date(), updated_by: by });
 export async function createCohort(cohort: Cohort, by: string): Promise<boolean> {
   try {
     await (await cohorts()).insertOne({ ...cohort, ...meta(by) });
-    // Clears marks left behind if an earlier delete of this id stopped halfway.
-    await deleteDoneFor(cohort.id);
+    // Clears marks, moves and tasks left behind if an earlier delete of this id stopped halfway.
+    await deleteTaskDataFor(cohort.id);
     return true;
   } catch (e) {
     if ((e as { code?: number }).code === 11000) return false;
@@ -127,8 +130,8 @@ export async function upsertCohort(cohort: Cohort, by: string): Promise<void> {
 export async function deleteCohort(id: string): Promise<boolean> {
   assertId(id);
   const res = await (await cohorts()).deleteOne({ id });
-  // A cohort made later with the same id must not inherit old ticks.
-  if (res.deletedCount === 1) await deleteDoneFor(id);
+  // A cohort made later with the same id must not inherit old ticks, moves or tasks.
+  if (res.deletedCount === 1) await deleteTaskDataFor(id);
   return res.deletedCount === 1;
 }
 
@@ -151,8 +154,81 @@ export async function setDone(key: string, done: boolean, by: string): Promise<v
   await (await doneMarks()).updateOne({ key }, { $set: { done, by, at: new Date() } }, { upsert: true });
 }
 
-async function deleteDoneFor(cohortId: string): Promise<void> {
-  await (await doneMarks()).deleteMany({ key: { $regex: doneKeyPattern(cohortId) } });
+async function deleteTaskDataFor(cohortId: string): Promise<void> {
+  const key = { $regex: doneKeyPattern(cohortId) };
+  const customs = await customDocs();
+  // Ticks on this cohort's one-off tasks are stored under `custom:<id>`, so find them before the tasks go.
+  const customKeys = (await customs.find({ cohortId }, { projection: { id: 1 } }).toArray()).map((d) => `custom:${d.id}`);
+  await Promise.all([
+    (await doneMarks()).deleteMany({ $or: [{ key }, { key: { $in: customKeys } }] }),
+    (await overrideDocs()).deleteMany({ key }),
+    customs.deleteMany({ cohortId }),
+  ]);
+}
+
+type OverrideDoc = { key: string; date: string; reason: string; by: string; at: Date };
+
+async function overrideDocs() {
+  await prepare();
+  return (await getDb()).collection<OverrideDoc>("planner_overrides");
+}
+
+/** Every moved date, by task key. */
+export async function listOverrides(): Promise<Record<string, Override>> {
+  const docs = await (await overrideDocs()).find().toArray();
+  return Object.fromEntries(docs.map((d) => [d.key, { date: d.date, reason: d.reason, by: d.by, at: d.at.toISOString() }]));
+}
+
+/** Move one task to a new date, with the reason. A second move replaces the first. */
+export async function setOverride(key: string, date: string, reason: string, by: string): Promise<void> {
+  if (typeof key !== "string") throw new Error("Task key must be text");
+  await (await overrideDocs()).updateOne({ key }, { $set: { date, reason, by, at: new Date() } }, { upsert: true });
+}
+
+/** Go back to the date the rules give. */
+export async function clearOverride(key: string): Promise<void> {
+  if (typeof key !== "string") throw new Error("Task key must be text");
+  await (await overrideDocs()).deleteOne({ key });
+}
+
+type CustomDoc = { id: string; title: string; date: string; cohortId?: string; owner?: string; by: string; at: Date };
+
+async function customDocs() {
+  await prepare();
+  return (await getDb()).collection<CustomDoc>("planner_customs");
+}
+
+/** Every one-off task, in the shape the task engine takes. */
+export async function listCustoms(): Promise<Custom[]> {
+  const docs = await (await customDocs()).find().sort({ at: 1 }).toArray();
+  return docs.map((d) => ({ id: d.id, title: d.title, date: d.date, cohortId: d.cohortId, owner: d.owner }));
+}
+
+/** One one-off task with who made it, so we can check who may delete it. */
+export async function getCustom(id: string): Promise<(Custom & { by: string }) | null> {
+  if (typeof id !== "string") throw new Error("Task id must be text");
+  const d = await (await customDocs()).findOne({ id });
+  return d ? { id: d.id, title: d.title, date: d.date, cohortId: d.cohortId, owner: d.owner, by: d.by } : null;
+}
+
+export async function createCustom(task: CustomInput, by: string): Promise<string> {
+  const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  await (await customDocs()).insertOne({ id, ...task, by, at: new Date() });
+  return id;
+}
+
+export async function updateCustomDate(id: string, date: string): Promise<boolean> {
+  if (typeof id !== "string") throw new Error("Task id must be text");
+  const res = await (await customDocs()).updateOne({ id }, { $set: { date } });
+  return res.matchedCount === 1;
+}
+
+export async function deleteCustom(id: string): Promise<boolean> {
+  if (typeof id !== "string") throw new Error("Task id must be text");
+  const res = await (await customDocs()).deleteOne({ id });
+  // A ticked one-off task would leave its mark behind otherwise.
+  if (res.deletedCount === 1) await (await doneMarks()).deleteOne({ key: `custom:${id}` });
+  return res.deletedCount === 1;
 }
 
 async function settingsDocs() {
@@ -187,4 +263,25 @@ export async function saveHolidays(holidays: Holiday[], by: string, loadedAt: st
     throw e;
   }
   return updated_at.toISOString();
+}
+
+/**
+ * Change the holiday list: add, edit or remove one holiday. It reads the list, applies the
+ * change, and saves only if nobody saved in between. If someone did, it reads again and
+ * redoes the change after a short random pause, so two admins working at once never
+ * lose each other's work. If it still cannot get through, it says so and nothing is lost.
+ */
+export async function changeHolidays(
+  by: string,
+  op: (list: Holiday[]) => HolidayChange,
+): Promise<{ ok: true } | { ok: false; errors?: HolidayFieldErrors; message?: string }> {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const doc = await getHolidaysDoc();
+    const result = op(doc.holidays);
+    if (!result.ok) return result;
+    if (await saveHolidays(result.holidays, by, doc.updated_at)) return { ok: true };
+    // A random pause, so callers that collided do not collide again on the same beat.
+    await new Promise((r) => setTimeout(r, 20 + Math.random() * 80));
+  }
+  return { ok: false, message: "Someone else is changing the holidays right now. Try again." };
 }

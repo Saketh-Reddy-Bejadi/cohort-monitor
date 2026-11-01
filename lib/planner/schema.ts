@@ -10,6 +10,8 @@ export type ParseResult =
 const MAX_TEXT = 100;
 const MAX_URL = 500;
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+// One-off task keys start with "custom:", so no cohort may use this id.
+const RESERVED_ID = "custom";
 
 export function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -78,10 +80,12 @@ export function parseCohort(input: Record<string, unknown>): ParseResult {
   if (rawId instanceof Error) fail("id", rawId.message);
   else if (rawId !== undefined) {
     if (!SLUG.test(rawId) || rawId.length > 60) fail("id", "Use lowercase letters, numbers and single hyphens, for example aise-c4");
+    else if (rawId === RESERVED_ID) fail("id", `"${RESERVED_ID}" is reserved. Pick another id`);
     else out.id = rawId;
   } else if (typeof out.name === "string") {
     const slug = slugify(out.name).slice(0, 60);
     if (!slug) fail("id", "Add letters or numbers to the name, or enter an id");
+    else if (slug === RESERVED_ID) fail("id", `"${RESERVED_ID}" is reserved. Enter a different id`);
     else out.id = slug;
   }
 

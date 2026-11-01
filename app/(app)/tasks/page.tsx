@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { AddTaskPanel } from "@/components/tasks/add-task-panel";
 import { TaskFilters } from "@/components/tasks/task-filters";
 import { TaskRow } from "@/components/tasks/task-row";
 import { fmtDay } from "@/lib/format";
@@ -19,8 +20,15 @@ async function TasksContent({ searchParams }: { searchParams: PageProps<"/tasks"
 
   return (
     <>
-      <p className="mb-4 text-sm text-slate-600">Today is {fmtDay(today)}. Dates are India dates.</p>
-      {cohorts.length > 0 && (
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-slate-600">Today is {fmtDay(today)}. Dates are India dates.</p>
+        <AddTaskPanel
+          cohorts={cohorts.filter((c) => c.status === "active").map((c) => ({ id: c.id, name: c.name }))}
+          owners={[...new Set([...ownersOf(tasks), ...cohorts.flatMap((c) => [c.poc, c.pm])].filter((x): x is string => !!x))].sort()}
+          today={today}
+        />
+      </div>
+      {(cohorts.length > 0 || tasks.length > 0) && (
         <TaskFilters
           cohorts={cohorts.map((c) => ({ id: c.id, name: c.name }))}
           owners={ownersOf(tasks)}
@@ -28,8 +36,8 @@ async function TasksContent({ searchParams }: { searchParams: PageProps<"/tasks"
           current={filters}
         />
       )}
-      {cohorts.length === 0 ? (
-        <Empty title="No cohorts yet" body="An admin can add one in Admin. Its tasks will show up here." />
+      {cohorts.length === 0 && tasks.length === 0 ? (
+        <Empty title="No cohorts yet" body="An admin can add one in Admin, and its tasks will show up here. You can also add a one-off task." />
       ) : groups.length === 0 ? (
         narrowed || filters.status !== "open" ? (
           <Empty title="No tasks match" body="Try another status or clear the filters." />

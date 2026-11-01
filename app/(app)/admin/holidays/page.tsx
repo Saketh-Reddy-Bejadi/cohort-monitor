@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { HolidaysForm } from "@/components/admin/holidays-form";
-import { formatHolidays } from "@/lib/planner/holidays.ts";
-import { getHolidaysDoc } from "@/lib/planner/store";
+import { HolidaysManager } from "@/components/admin/holidays-manager";
+import { getHolidays } from "@/lib/planner/store";
+import { todayIST } from "@/lib/planner/today.ts";
 import { requireAdmin } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Holidays" };
 
 async function Holidays() {
-  await requireAdmin();
-  const { holidays, updated_at } = await getHolidaysDoc();
-  return <HolidaysForm initialText={formatHolidays(holidays)} loadedAt={updated_at} />;
+  await requireAdmin(); // first: this makes the page dynamic, so the clock below is allowed
+  return <HolidaysManager holidays={await getHolidays()} today={todayIST()} />;
 }
 
 export default function HolidaysAdminPage() {
@@ -18,9 +17,10 @@ export default function HolidaysAdminPage() {
     <section>
       <h2 className="text-lg font-bold">Holidays</h2>
       <p className="mb-4 mt-1 text-sm text-slate-600">
-        Weekends already count as days off. List the other days here.
+        Weekends already count as days off. Pick the other days here. Tasks that fall on a holiday move
+        back to the previous working day. Go-live tasks keep their date.
       </p>
-      <Suspense fallback={<div className="h-64 max-w-xl animate-pulse rounded-2xl bg-slate-100 motion-reduce:animate-none" />}>
+      <Suspense fallback={<div className="h-64 max-w-2xl animate-pulse rounded-2xl bg-slate-100 motion-reduce:animate-none" />}>
         <Holidays />
       </Suspense>
     </section>

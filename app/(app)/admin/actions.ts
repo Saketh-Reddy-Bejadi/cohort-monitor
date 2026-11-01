@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { authorizeAction } from "@/lib/action-auth";
 import { parseCohort } from "@/lib/planner/schema.ts";
-import { createCohort, deleteCohort, replaceCohort, saveHolidays } from "@/lib/planner/store";
-import { parseHolidays, type HolidayLineError } from "@/lib/planner/holidays.ts";
+import { changeHolidays, createCohort, deleteCohort, replaceCohort } from "@/lib/planner/store";
+import { addHoliday, removeHoliday, updateHoliday, type HolidayFieldErrors } from "@/lib/planner/holidays.ts";
 import { changeUserRole } from "@/lib/users";
 import type { CohortErrors } from "@/lib/planner/types.ts";
 
@@ -70,19 +70,33 @@ export async function changeRoleAction(email: string, role: string): Promise<{ e
   return { error: ROLE_MESSAGES[outcome] };
 }
 
-export type HolidayState = { text?: string; errors?: HolidayLineError[]; saved?: boolean; message?: string; loadedAt?: string };
+export type HolidayResult = { errors?: HolidayFieldErrors; message?: string };
 
-export async function saveHolidaysAction(_prev: HolidayState, formData: FormData): Promise<HolidayState> {
-  const { user } = await authorizeAction("write-holidays");
-  const raw = formData.get("holidays");
-  const text = typeof raw === "string" ? raw : "";
-  const parsed = parseHolidays(text);
-  if (!parsed.ok) return { text, errors: parsed.errors };
-  const loadedAt = formData.get("loadedAt");
-  const savedAt = await saveHolidays(parsed.holidays, user.email, typeof loadedAt === "string" ? loadedAt : "");
-  if (!savedAt) {
-    return { text, message: "Someone else saved the holidays after you opened this page. Reload to see their changes, then edit again." };
-  }
+async function saveHolidayChange(
+  by: string,
+  op: Parameters<typeof changeHolidays>[1],
+): Promise<HolidayResult> {
+  const res = await changeHolidays(by, op);
+  if (!res.ok) return { errors: res.errors, message: res.message };
   refresh();
-  return { text, saved: true, loadedAt: savedAt };
+  return {};
+}
+
+/** Add one holiday. Admins and the owner only. */
+export async function addHolidayAction(date: string, name: string): Promise<HolidayResult> {
+  const { user } = await authorizeAction("write-holidays");
+  return saveHolidayChange(user.email, (list) => addHoliday(list, { date, name }));
+}
+
+/** Change the date or name of the holiday that is on `oldDate`. */
+export async function updateHolidayAction(oldDate: string, date: string, name: string): Promise<HolidayResult> {
+  const { user } = await authorizeAction("write-holidays");
+  if (typeof oldDate !== "string") return { message: "Bad request." };
+  return saveHolidayChange(user.email, (list) => updateHoliday(list, oldDate, { date, name }));
+}
+
+export async function removeHolidayAction(date: string): Promise<HolidayResult> {
+  const { user } = await authorizeAction("write-holidays");
+  if (typeof date !== "string") return { message: "Bad request." };
+  return saveHolidayChange(user.email, (list) => ({ ok: true, holidays: removeHoliday(list, date) }));
 }

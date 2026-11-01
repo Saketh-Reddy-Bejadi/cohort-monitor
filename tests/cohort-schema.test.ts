@@ -107,3 +107,9 @@ test("price and enrolment dates must be in order", () => {
   assert.ok(errors({ ...base, standard_from: "2026-11-12", enrol_close: "2026-11-11" }).enrol_close);
   ok({ ...base, launch: "2026-11-01", ic_close: "2026-11-10", standard_from: "2026-11-11", enrol_close: "2026-11-12" });
 });
+
+test("the id custom is reserved for one-off task keys", () => {
+  assert.ok(errors({ ...base, id: "custom" }).id);
+  assert.ok(errors({ name: "Custom", kind: "Live cohort" }).id);
+  assert.equal(ok({ ...base, id: "custom-1" }).id, "custom-1");
+});

@@ -1,6 +1,6 @@
 import "server-only";
 import { buildTasks, type Task } from "./engine.ts";
-import { getHolidays, listCohorts, listDone, type StoredCohort } from "./store";
+import { getHolidays, listCohorts, listCustoms, listDone, listOverrides, type StoredCohort } from "./store";
 import { todayIST } from "./today.ts";
 
 /**
@@ -8,8 +8,10 @@ import { todayIST } from "./today.ts";
  * Call it inside <Suspense> and after reading the session, because it uses the clock.
  */
 export async function loadTasks(): Promise<{ tasks: Task[]; cohorts: StoredCohort[]; today: string }> {
-  const [cohorts, done, holidays] = await Promise.all([listCohorts(), listDone(), getHolidays()]);
+  const [cohorts, done, holidays, overrides, customs] = await Promise.all([
+    listCohorts(), listDone(), getHolidays(), listOverrides(), listCustoms(),
+  ]);
   const today = todayIST();
-  const tasks = buildTasks({ cohorts, done, holidays: holidays.map((h) => h.date), today });
+  const tasks = buildTasks({ cohorts, done, overrides, customs, holidays: holidays.map((h) => h.date), today });
   return { tasks, cohorts, today };
 }
